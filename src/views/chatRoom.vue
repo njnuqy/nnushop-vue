@@ -1,31 +1,39 @@
 <template>
   <div>
-    <div>
-      <ul>
-        <li v-for="(user,index) in userData" :key="index" style="list-style: none; display: flex; align-items: center; gap: 8px;">
-          <el-avatar :src="user.avatar" shape="circle" :size="90"></el-avatar>
-          <p>{{ user.username }}</p>  
-          <el-button type="primary" style="margin-left: 20px;" @click="reply(user.id,user.avatar)">回复</el-button>
-        </li>
-      </ul>
-    </div>
-    <div v-if="showChatBox" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: aqua; height: 70vh; width: 80vw; display: flex; flex-direction: column;">  
-      <ul ref="messageList" style="margin-top: 20px; flex: 1; overflow-y: auto;">  
-        <li v-for="(message, index) in showMessages" :key="index" style="list-style: none; margin: 15px;"> 
-          <div v-if="message.fromId != user.id" style="display: flex;">
-            <el-avatar :src="avatar" shape="circle" :size="50"></el-avatar>
-            <p>{{ message.message }}</p>
+    <div style="width: 800px;height: 600px;;margin-top: 10%;border: 1px solid #ccc;display: flex;">
+      <!-- 联系人列表 -->
+      <div style="flex:1;">
+        <!-- 头部 -->
+        <div style="padding-bottom: 30px;">
+          <p style="margin-left: 3%;">联系人列表</p>
+          <el-input placeholder="搜索最近联系人" v-model="recentContact" ></el-input>
+        </div>
+        <!-- 联系人信息 -->
+        <div v-for="(user,index) in userList" :key="index" class="chat-box" @click="selectUser(index)">
+          <div style="display: flex;">
+            <el-avatar :size="40" :src="user.avatar"></el-avatar>
+            <p style="margin-left: 20px;">{{ user.username }}</p>
           </div>
-          <div v-if="message.fromId == user.id" style="display: flex; justify-content: flex-end;">  
-            <p style="margin-right: 10px;">{{ message.message }}</p>
-            <el-avatar :src="user.avatar" shape="circle" :size="50"></el-avatar>
+        </div>
+      </div>
+      <!-- 聊天界面 -->
+      <div style="flex: 2;width: 600px;position: relative;" >
+        <div style="margin-left: 5%;width: 500px; height: 580px; overflow-y: auto;">
+          <p>{{ selectedUser.username }}</p>
+          <div style="margin-top: 10%;">
+            <div v-for="(content,index) in chatContent" :key="index" class="message-wrapper">
+              <div :class="content.senderId === user.id ? 'message-right' : 'message-left'" class="message-container" >
+                <el-avatar :size="30" :src="content.senderId === selectedUser.id? selectedUser.avatar : user.avatar"></el-avatar>
+                <p style="margin-left: 2%;">{{ content.content }}</p>
+              </div>
+            </div> 
           </div>
-        </li>  
-      </ul>  
-      <div style="padding: 10px;display: flex; text-align: center; background: white; /* 添加背景色以与聊天内容区分 */">  
-      <el-input type="text" v-model="newMessage" placeholder="输入消息">  </el-input>
-      <el-button @click="sendMessage(newMessage)" type="primary">发送</el-button>  
-      </div>  
+        </div>
+        <div style="position: absolute; bottom: 0; width: 100%; display: flex;">
+          <el-input v-model="newMessage" ref="messageInput" style="flex: 1;" @keyup.native.enter="sendMessage(newMessage)"></el-input>
+          <el-button @click="sendMessage(newMessage)"  type="primary">发送</el-button>  
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -38,7 +46,6 @@ export default {
         socket : null,
         messages : {},
         newMessage : "",
-        test : "test",
         userIds:[],
         userData:[],
         token:"",
@@ -47,10 +54,28 @@ export default {
         user:"",
         toId:"",
         avatar:"",
-        showChatBox : false
+        recentContact:"",
+        userList:[],
+        selectedUser:{},
+        chatContent:[],
       }
     },
     methods:{
+      selectUser(index){
+        this.selectedUser = this.userList[index];
+        // 获取聊天内容
+        this.$axios.get("/user/authorize/getChatMessage",{
+          params:{
+            "senderId":this.user.id,
+            "receiverId":this.selectedUser.id
+          },headers:{
+            "token":this.token
+          }
+        }).then(res=>{
+          console.log(res.data.data)
+          this.chatContent = res.data.data
+        });
+      },
       connectToWebSocket(){
             const wsUri = 'ws://localhost:8086/chat'; // 替换为你的WebSocket服务器地址
             this.socket = new WebSocket(wsUri);
@@ -65,14 +90,8 @@ export default {
 
             this.socket.onmessage = (event) => {
                 const message = JSON.parse(event.data);
-                const messageFromId = message.fromId
-                this.userIds.push(messageFromId)
-                if(this.messages[messageFromId]){
-                  this.messages[messageFromId].push(message);
-                }else{
-                  this.messages[messageFromId] = [message]
-                }
-                this.getUsers()
+                console.log(message)
+                this.chatContent.push(message);
             };
             this.socket.onerror = (error) => {
                 console.log("Websocket Error observer",error);
@@ -92,21 +111,19 @@ export default {
             console.log(err)
           })
         },
-        reply(userId,avatar){
-          console.log(userId)
-          console.log(this.messages[userId])
-          this.showMessages = this.messages[userId]
-          this.showChatbox = true
-          this.toId = userId
-          this.avatar = avatar
-          console.log(avatar)
-          this.showChatBox = true
-        },
         sendMessage(message){
+          if(this.selectedUser.username == null ){
+            alert("没有选择发送目标");
+            return;
+          }
+          if(message.length == 0){
+            alert("消息不能为空");
+            return;
+          }
           const JSONMessage = {
-                "message" : message,
-                "toId" : this.toId,
-                "fromId" : this.user.id
+                "content" : message,
+                "receiverId" : this.selectedUser.id,
+                "senderId" : this.user.id
             }
           console.log(JSONMessage)
           if(this.socket && this.socket.readyState === WebSocket.OPEN){
@@ -115,19 +132,87 @@ export default {
                 console.log("Websocket connection is not open");
             }
             this.newMessage = ""
-            this.messages[this.toId].push(JSONMessage)
-            this.showMessages = this.messages[this.toId]
-            console.log(this.showMessages)
+            this.chatContent.push(JSONMessage)
+            this.$refs.messageInput.focus()
         }
     },
     created(){
       this.connectToWebSocket();
       this.token = localStorage.getItem("token");
       this.user = JSON.parse(localStorage.getItem("user"));
-    }
+      this.$axios.get("/user/authorize/getChatUserList",{
+        params:{
+          "userId":this.user.id
+        },headers:{
+          "token":this.token
+        }
+      }).then(res=>{
+        console.log(res.data);
+        if(res.data != ""){
+          this.userList = res.data.data;
+        }
+        
+      })
+    },
+    beforeDestroy(){
+      if(this.socket){
+          this.socket.close();
+        }
+      }
 }
 </script>
 
 <style scoped>
+/* 基础样式，定义div的基本外观 */
+.chat-box {
+ 
+    padding: 20px;
+    background-color: #f0f0f0; /* 默认背景色 */
+    transition: background-color 0.3s ease; /* 添加过渡效果，使颜色变化更平滑 */
+}
 
-</style>
+/* 当鼠标悬停在div上时的样式 */
+.chat-box:hover,
+.chat-box:focus { /* 注意：focus 用于处理键盘导航时的高亮效果 */
+    background-color: #e0e0e0; /* 鼠标悬停时的背景色 */
+}
+
+/* 对于触控设备，可以使用伪类 :active 来模拟按下时的效果 */
+.chat-box:active {
+    background-color: #d0d0d0; /* 触摸按下时的背景色，可根据需要调整 */
+}
+
+/* 保持外部容器的样式不变 */
+.message-wrapper {
+    display: flex;
+    /* justify-content: flex-end; 这一行应该被移除或注释掉 */
+}
+
+/* 调整消息容器的基础样式 */
+.message-container {
+    display: flex;
+    flex-direction: row; /* 改变为行排列，以便更好地控制对齐 */
+    margin-bottom: 10px; /* 保持消息间的间距 */
+    align-items: center;
+}
+
+/* 对右侧消息（自己发出的）进行样式设定 */
+.message-right {
+    margin-left: auto; /* 这将使得右侧消息靠右对齐 */
+    text-align: right; /* 确保文本也靠右 */
+    flex-direction: row-reverse;
+}
+.message-right p{
+  margin-right: 2%;
+}
+
+/* 对左侧消息（对方发出的）进行样式设定 */
+.message-left {
+    text-align: left; /* 确保文本靠左 */
+}
+
+.message-container p {
+    /* 防止文本过短时自动换行 */
+    width: 200px;
+}
+</style> 

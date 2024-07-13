@@ -11,6 +11,12 @@ import chatRoom from '@/views/chatRoom.vue'
 import modifyItem from '../views/modifyItem.vue'
 import myShoppingCart from '../views/myShoppingCart.vue'
 import BuyComponent from '../views/BuyComponent.vue'
+import manage from '../views/manage.vue'
+import userinfo from '../components/userinfo.vue'
+import manageGoods from '../components/manageGoods.vue'
+import payOrder from '../views/payOrder.vue'
+import orderDetail from '../views/orderDetail.vue'
+import comment from '../views/commentOrder.vue'
 Vue.use(VueRouter)
 
 const routes = [
@@ -50,11 +56,6 @@ const routes = [
         component:itemDetail
     },
     {
-        path:'/ChatRoom',
-        name:'ChatRoom',
-        component:chatRoom
-    },
-    {
         path:'/modifyItem',
         name:'modifyItem',
         component:modifyItem
@@ -66,8 +67,45 @@ const routes = [
     },
     {
         path:'/buy',
-        name:'BuyComponent',
+        name:'buy',
         component:BuyComponent
+    },
+    {
+        path:'/payOrder',
+        name:'payOrder',
+        component:payOrder
+    },
+    {
+        path:'/orderDetail',
+        name:'orderDetail',
+        component:orderDetail
+    },
+    {
+        path:'/comment',
+        name:'comment',
+        component:comment
+    },
+    {
+        path:'/manage',
+        name:'manage',
+        component:manage,
+        children:[
+            {
+                path:'userinfo',
+                name:'userinfo',
+                component:userinfo
+            },
+            {
+                path:'/ChatRoom',
+                name:'ChatRoom',
+                component:chatRoom
+            },
+            {
+                path:'/manageGoods',
+                name:'manageGoods',
+                component:manageGoods
+            },
+        ]
     },
 ]
 

@@ -16,15 +16,50 @@
         <div>
           <p>选择收货地址</p>
           <div style="display: flex;">
-            <div v-for="(userinfo,index) in userinfos" :key="index" style="border: 1px dashed black;" @click="selectAddress(index)" :class="{ 'selected': selectedAddressIndex == index }" >
+            <div v-for="(userinfo,index) in userinfos" :key="index" style="border: 1px dashed black;margin: 1%;width: 150px;" @click="selectAddress(index)" :class="{ 'selected': selectedAddressIndex == index }" >
               <p>{{ userinfo.address }}({{ userinfo.name }}收)</p>
               <p>{{ userinfo.mobile }}</p>
             </div>
           </div>
           <p style="float:right;" @click="manageUserInfo" class="clickable-text">管理收货地址</p>
         </div>
+        <div style="margin-top: 8%;">
+          <div>确认订单信息</div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem;margin-top: 5%;" class="order">
+            <div style="width: 200px;">店铺宝贝</div>
+            <div>单价</div>
+            <div>数量</div>
+            <div>优惠方式</div>
+            <div>小计</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem;margin-top: 10%;" class="order">
+            <div>
+              <el-image
+                :src="item.url"
+                style="width: 100px; height: auto; object-fit: cover;"
+              ></el-image>
+            </div>
+            <div>￥{{item.price}}</div>
+            <div>
+              <el-input type="number" v-model="number" min="1" style="width: 30%;"></el-input>
+            </div>
+            <div>无</div>
+            <div>￥{{item.price * number}}</div>
+          </div>
+        </div>
+        <div style="margin-top: 10%;">
+          <div style="float:right;">
+            <div >实付款:￥<span style="font-size: 70px;color: red;">{{ item.price * number }}</span></div>
+            <div>
+              <p>寄送至：{{ selectedUserinfo.address }}</p>
+              <p>收货人：{{ selectedUserinfo.name }}</p>
+            </div>
+            <el-button type="primary" style="width: 200px;background-color: red;" @click="submitOrder">提交订单</el-button>
+          </div>
+        </div>
       </el-main>
     </el-container>
+    <!-- 如果没有收货地址，弹出创建地址弹窗 -->
     <el-dialog
       title="创建地址"
       :visible.sync="dialogVisible"
@@ -53,16 +88,19 @@ export default {
     data(){
       return{
         dialogVisible:true,
+        number:1,
         formData:{
           userId:"",
           address:"",
           name:"",
-          mobile:""
+          mobile:"" 
         },
         selectedAddressIndex:0,
         user:"",
         token:"",
         userinfos:[],
+        selectedUserinfo: { address: '', name: '', mobile: '' },
+        item:{},
         rules:{
           name:[
             {required:true,message:"请输入收件人姓名",trigger:'blur'},
@@ -78,12 +116,44 @@ export default {
       }
     },
     methods:{
+      submitOrder(){
+        if(this.selectedUserinfo.address == "" || this.selectedUserinfo.name == "" || this.selectedUserinfo.mobile == ""){
+          alert("请选择收货地址");
+          return;
+        }
+        const order = {
+          "itemId" : this.item.id,
+          "number" : this.number,
+          "userId" : this.user.id,
+          "name" : this.selectedUserinfo.name,
+          "phone" : this.selectedUserinfo.mobile,
+          "address" : this.selectedUserinfo.address,
+          "orderStatus" : "",
+          "itemUrl" : this.item.url
+        }
+        console.log(order)
+        this.$axios.post("/order/authorize/addOrder",order,{
+          headers:{
+            "token" : this.token
+          }
+        }).then(res=>{
+          console.log(res);
+          // this.$router.push({
+          //   path:"/payOrder",
+          //   query:{
+          //     "orderId" : res.data.data.id
+          //   }
+          // })
+          window.open(`http://localhost:8081/alipay/permit/pay?subject=${this.item.itemName}&traceNo=${res.data.data.id}&totalAmount=${this.item.price * this.number}`,'_self')
+        })
+      },
       manageUserInfo(){
-
+        const newUrl = `${window.location.origin}/manage/userinfo`;
+        window.open(newUrl,'_blank');
       },
       selectAddress(index){
         this.selectedAddressIndex = index;
-        console.log(this.selectedAddressIndex);
+        this.selectedUserinfo = this.userinfos[index];
       },
       submit(formData){
         this.$refs[formData].validate((valid)=>{
@@ -112,6 +182,7 @@ export default {
     created(){
       this.user = JSON.parse(localStorage.getItem('user'));
       this.token = localStorage.getItem("token");
+      this.item = JSON.parse(sessionStorage.getItem("item"));
       this.$axios.get("/userinfo/authorize/getUserInfos",{
         params:{
           "userId" : this.user.id
@@ -120,9 +191,11 @@ export default {
           "token" : this.token
         }
       }).then(res=>{
+        console.log(res.data.data);
         this.userinfos = res.data.data;
         if(this.userinfos.length != 0){
           this.dialogVisible = false;
+          this.selectedUserinfo = this.userinfos[0];
         }
         console.log(this.userinfos)
       })
@@ -162,4 +235,7 @@ export default {
   color: orange; /* 设置字体颜色 */  
   cursor: pointer; /* 设置鼠标悬停时的光标为手型 */  
 }  
+
+
+
 </style>

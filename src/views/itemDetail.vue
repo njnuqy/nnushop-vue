@@ -36,12 +36,40 @@
                 </div>
                 <div style="flex:1">
                     <p style="font-size: 30px;font-weight: bold;">{{ item.itemName }}</p>
+                    <p style="font-size: 20px;font-weight: bold;">库存剩余： {{ item.stock }}</p>
                     <p>￥{{ item.price }}</p>
                     <div>
                         <el-button type="primary" style="background-color:orange" @click="buy">立即购买</el-button>
                         <el-button type="primary" @click="addItem(itemId)">加入购物车</el-button>
                     </div>
                 </div>
+            </div>
+            <div style="margin-top: 5%;">
+                <el-tabs v-model="activeName"  :stretch=true>
+                    <el-tab-pane label="商品介绍" name="first">商品介绍</el-tab-pane>
+                    <el-tab-pane label="商品评价" name="second">
+                        <p>商品评价</p>
+                        <div v-for="(comment,index) in comments" :key="index" style="display: flex;align-items: center;margin-top: 3%;">
+                            <div style="display: flex;align-items: center;flex: 1;">
+                                <el-avatar :src="comment.avatar"></el-avatar>
+                                <p>{{ comment.username }}</p>
+                            </div>
+                            <div style="flex:7;">
+                                {{comment.comment}}
+                            </div>
+                        </div>
+                        <el-pagination
+                                background
+                                layout="prev, pager, next"
+                                :total="total"
+                                style="float: right;"
+                                :current-page="currentPage"
+                                @current-change="currentChange">
+                                
+                        </el-pagination>
+                    </el-tab-pane>
+                    <el-tab-pane label="本店其他商品" name="third">本店其他商品</el-tab-pane>
+                </el-tabs>
             </div>
         </el-main>
     </el-container>
@@ -54,28 +82,13 @@
         <el-button @click="dialogVisible = false">确 定</el-button>  
       </span>  
     </el-dialog>  
-    <div v-if="showChatbox" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: aqua; height: 70vh; width: 80vw; display: flex; flex-direction: column;">  
-      <ul ref="messageList" style="margin-top: 20px; flex: 1; overflow-y: auto;">  
-        <li v-for="(message, index) in messages" :key="index" style="list-style: none; margin: 15px;"> 
-          <div v-if="message.fromId != user.id" style="display: flex;">
-            <el-avatar :src="storeUser.avatar" shape="circle" :size="50"></el-avatar>
-            <p>{{ message.message }}</p>
-          </div>
-          <div v-if="message.fromId == user.id" style="display: flex; justify-content: flex-end;">  
-            <p style="margin-right: 10px;">{{ message.message }}</p> 
-            <el-avatar :src="user.avatar" shape="circle" :size="50"></el-avatar> 
-          </div>
-        </li>  
-      </ul>  
-      <div style="padding: 10px;display: flex; text-align: center; background: white; /* 添加背景色以与聊天内容区分 */">  
-      <el-input type="text" v-model="newMessage" placeholder="输入消息">  </el-input>
-      <el-button @click="sendMessage(newMessage)" type="primary">发送</el-button>  
-      </div>  
-    </div>
+    
   </div>
 </template>
 
 <script>
+
+
 export default {
     name:"Item_Detail",
     data(){
@@ -83,7 +96,6 @@ export default {
             itemId:"",
             item:{},
             store:{},
-            value:3.7,
             fit:"fit",
             dialogVisible: false,
             showChatbox: false,
@@ -93,10 +105,26 @@ export default {
             user:"",
             storeUser:"",
             token:"",
+            value:0,
+            comments:[],
+            activeName: 'first',
+            currentPage:1,
+            total:1
         }
     },
     methods:{
+        currentChange(val){
+            console.log(val);
+            this.getComments(val);
+        },
         buy(){
+            console.log(localStorage.getItem("token"))
+            if(localStorage.getItem("token") == null){
+                this.$router.push("/login")
+                return
+            }
+            var JSONteim = JSON.stringify(this.item);
+            sessionStorage.setItem("item",JSONteim);
             this.$router.push({
                 path:"/buy",
                 query:{
@@ -106,11 +134,12 @@ export default {
         },
         addItem(){
             const user = JSON.parse(localStorage.getItem("user"))
-            var userId = user.id
             const token = localStorage.getItem("token")
-            if(userId == null || token == null){
-                this.$router.push("/login")
+            if(user == null || token == null){
+                this.$router.push("/login");
+                return;
             }
+            var userId = user.id
             var shoppingcartItem = {
                 "itemId" :this.itemId,
                 "userId" : userId
@@ -129,51 +158,29 @@ export default {
             })
         },
         contact(){
-            this.connectToWebSocket();
-            console.log("666666666");
-            this.showChatbox = true;
-            this.user = JSON.parse(localStorage.getItem("user"));
-            console.log(this.user)
-            this.getUserById();
-
-        },
-        sendMessage(message){
-            const JSONMessage = {
-                "message" : message,
-                "toId" : this.store.userId,
-                "fromId" : this.userId
+            if(this.user == null){
+                this.$router.push("/login")
             }
-            if(this.socket && this.socket.readyState === WebSocket.OPEN){
-                this.socket.send(JSON.stringify(JSONMessage))
-            }else{
-                console.log("Websocket connection is not open");
+            const chatMessage = {
+                "senderId" : this.store.userId,
+                "receiverId": this.user.id,
+                "content" : "打招呼",
+                "status" : "UNWATCHED",
+                "timestamp" : Date.now()
             }
-            this.newMessage = ""
-            this.messages.push(JSONMessage)
-        },
-        connectToWebSocket(){
-            const wsUri = 'ws://localhost:8086/chat'; // 替换为你的WebSocket服务器地址
-            this.socket = new WebSocket(wsUri);
-            this.socket.onopen = (event) => {
-                console.log('WebSocket Connection opened',event);
-                //连接打开后，你可以发送一条初始消息或进行其他操作  
-                //假设 userObject 是从某处获取的用户对象  
-                const JSONUser = localStorage.getItem("user")
-                //将用户对象转换为JSON字符串，并发送给服务器  
-                this.socket.send(JSONUser); 
-            };
-
-            this.socket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                console.log(message)
-                this.messages.push(message)
-            };
-
-            this.socket.onerror = (error) => {
-                console.log("Websocket Error observer",error);
-            };
+            console.log(this.token)
+            this.$axios.post("/user/authorize/addChatMessage",chatMessage,{
+                headers:{
+                    "token" : this.token
+                }
+            }).then(res=>{
+                console.log(res)
+            })
+            const newUrl = `${window.location.origin}/ChatRoom`
+            window.open(newUrl, '_blank')
 
         },
+
         getUserById(){
             this.token = localStorage.getItem("token")
             this.$axios.get("/user/authorize/getUserById",{
@@ -196,9 +203,32 @@ export default {
           done();  
         })  
         .catch(() => {});  
-    }  
+        },
+        getComments(pageNum){
+            this.$axios.get("/item/permit/getMark",{
+            params:{
+                "itemId" : this.itemId
+            }
+        }).then(res=>{
+            this.value = res.data.data
+        })
+        this.$axios.get("/item/permit/getComments",{
+            params:{
+                "itemId" : this.itemId,
+                "pageNum":pageNum
+            }
+        }).then(res=>{
+            console.log(res.data.data)
+            this.comments = res.data.data.records
+            this.total = res.data.data.total
+        })
+        }
     },
-    mounted(){
+    created(){
+        this.itemId = this.$route.query.itemId;
+        this.getComments(1);
+        this.token = localStorage.getItem("token")
+        this.user = JSON.parse(localStorage.getItem("user"))
         const _this = this
         this.itemId = this.$route.query.itemId
         this.$axios.get("/item/permit/getItemById",{
@@ -217,7 +247,6 @@ export default {
             _this.store = res.data.data
         })
         });
-        
     },
     beforeDestroy(){
         if(this.socket){

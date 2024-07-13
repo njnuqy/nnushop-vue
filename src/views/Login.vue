@@ -52,6 +52,7 @@
             this.$axios.post('/login', this.userData).then(res => {
             res.data.user.password = "";
             console.log(res.data);
+            this.$store.commit("SET_TOKEN",res.data.token);
             localStorage.setItem("token",res.data.token);
             localStorage.setItem("user",JSON.stringify(res.data.user))
             this.$router.push("/index");

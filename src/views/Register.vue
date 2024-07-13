@@ -38,12 +38,13 @@ export default {
         register(userData){
           this.$refs[userData].validate(valid=>{
             if(valid){
-              console.log(this.userData)
               this.$axios.post("/user/permit/register",this.userData).then(res=>{
                 console.log(res);
+                this.$router.push("/index")
               })
               .catch(error=>{
-                console.log(error)
+                console.log(error);
+                alert("用户名已被注册");
               })
             }else{
               alert("输入格式不正确")

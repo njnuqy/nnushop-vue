@@ -15,7 +15,7 @@
         :on-success="uploadSuccess"
         list-type="picture">
         <el-button size="small" type="primary">点击上传</el-button>    只能上传jpg/png文件，且不超过500kb
-    </el-upload>
+        </el-upload>
       </el-form-item>
       <el-form-item style="text-align: center;justify-content: center;">
         <el-button @click="addItem('itemForm')">添加商品</el-button>
@@ -32,7 +32,9 @@ export default {
         itemForm:{
           itemName:"",
           price:"",
-          url:""
+          url:"",
+          stock:"1",
+          objectName:""
         },
         storeId:"",
         token:"",
@@ -64,7 +66,7 @@ export default {
           if(valid){
             const item = {
               "item" : _this.itemForm,
-              "storeId" : this.storeId
+              "storeId" : this.storeId,
             }
             alert('submit')
             this.$axios.post("/item/authorize/addItem",item,{
@@ -91,8 +93,9 @@ export default {
         console.log("上传失败")
       },
       uploadSuccess(res){
-        console.log(res.data)
-        this.itemForm.url = res.data
+        console.log(res.data);
+        this.itemForm.url = res.data.url;
+        this.itemForm.objectName = res.data.objectName;
         console.log("上传成功")
       },
 

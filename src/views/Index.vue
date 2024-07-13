@@ -4,12 +4,23 @@
       <el-header>
         <div style="display: flex; align-items: center;"> 
           <span style="color:green;">nnushop</span>
-          <div style="display: flex;margin-left: auto;margin-right: auto;">
-            <el-input style="width: 500px;" placeholder="输入内容以搜索"></el-input>
-            <el-button type="primary" icon="el-icon-search">搜索</el-button>
+          <div style="display: flex;margin-left: auto;margin-right: auto;flex-direction: column;">
+            <div style="display: flex;">
+              <el-input style="width: 500px;" placeholder="输入内容以搜索" v-model="keyword" @input="inputChange"></el-input>
+              <el-button type="primary" icon="el-icon-search">搜索</el-button>
+            </div>
+            <div>
+              <div 
+                v-for="(suggest, index) in suggestions" 
+                :key="index" 
+                style="border: 1px solid #ccc; margin: 10px 0; height: 50px; z-index: 999; display: flex; align-items: center;
+                display: flex; align-items: center;cursor: pointer;" @click="itemDetail(suggest.id)">
+                {{ suggest.itemName }}
+              </div>
+            </div>
           </div>
           <div>
-            <el-button type="primary" @click="manageChat" v-if="token">消息管理</el-button>
+            <el-button type="primary" @click="manage" v-if="token">个人中心</el-button>
             <el-button type="warning" @click="myShoppingcart" v-if="token">我的购物车</el-button>
           </div>
         </div>
@@ -17,7 +28,7 @@
       <el-main>
         <div style="display: flex;justify-content: flex-start;">
           <div style="flex:3;">
-            <el-carousel indicator-position="outside" style="width: 50%;">
+            <el-carousel indicator-position="outside" style="width: 50%;z-index: -1;">
               <el-carousel-item v-for="item in itemss" :key="item">
                 <img :src="item.url" style="width: auto; height: auto;">
               </el-carousel-item>
@@ -58,13 +69,34 @@ export default {
       return{
         input:"",
         itemss: [1, 2, 3, 4, 5, 6],
-        items: [1, 2, 3, 4, 5, 6], // 你的数据项 
+        items: [], // 你的数据项 
         token:"",
         user:{},
-        store:{}
+        store:{},
+        keyword:"",
+        suggestions:[],
+        searchTimer:null
       }
     }, 
     methods:{
+      itemDetail2(itemId){
+        console.log(itemId)
+      },
+      inputChange(){
+        clearTimeout(this.timer)
+				this.timer = setTimeout(()=>{
+					this.search()
+				},300)
+      },
+      search(){
+        this.$axios.get("/item/permit/search",{
+          params:{
+            "keyword":this.keyword
+          }
+        }).then(res=>{
+          this.suggestions = res.data.data
+        })
+      },
       login(){
         this.$router.push("/login");
       },
@@ -100,15 +132,17 @@ export default {
         const newTabUrl = `${window.location.origin}/myShoppingCart?userId=${this.user.id}`;
         window.open(newTabUrl,'_blank');
       },
-      manageChat(){
-        const newTabUrl = `${window.location.origin}/ChatRoom`; // 构建新标签页的 URL  
+      manage(){
+        const newTabUrl = `${window.location.origin}/manage/userinfo`; // 构建新标签页的 URL  
         window.open(newTabUrl, '_blank');
       }
     },
     created(){
-      this.token = localStorage.getItem('token');
+
+      this.token = localStorage.getItem("token"); 
       console.log(this.token)
       const JSONuser = localStorage.getItem("user")
+      console.log(JSONuser)
       const _this = this
       this.$axios.get("/item/permit/getAllItems").then(res=>{
         _this.items = res.data.data
@@ -123,7 +157,6 @@ export default {
         _this.user.username = "游客"
       }
       if(this.token != null){
-        const _this = this;
         this.$axios.get("/store/permit/selectStore",{
           params:{
             "token":_this.token
@@ -170,4 +203,16 @@ export default {
   .el-carousel__item:nth-child(2n+1) {
     background-color: #d3dce6;
   }
+  /* 添加在<style>标签内或外部CSS文件中 */
+.el-header div[style*="z-index: 999;"] {
+  box-sizing: border-box; /* 确保内边距和边框包含在总宽度和高度内 */
+  position: relative; /* 为使用绝对定位的内部元素做准备（如有需要） */
+  padding: 0; /* 如果需要，移除内边距 */
+  margin: 0; /* 移除外边距，或者调整为合适的值 */
+}
+
+/* 如果有特定的内部元素影响布局，可以针对性地调整 */
+.el-header div[style*="z-index: 999;"] * {
+  pointer-events: none; /* 禁止内部元素响应鼠标事件，让点击只作用于外层div */
+}
 </style>

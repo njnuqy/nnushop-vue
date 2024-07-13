@@ -27,7 +27,7 @@
       <el-table-column style="display: flex;">
         <template slot-scope="scope">  
           <el-button type="primary" @click="modify(scope.row)">修改</el-button>  
-          <el-button type="danger" @click="handleRemove(scope.row)">下架商品</el-button>  
+          <el-button type="danger" @click="deleteItem(scope.row)">下架商品</el-button>  
         </template>  
       </el-table-column>
     </el-table>
@@ -49,40 +49,56 @@ export default {
         }
     },
     methods:{
-        getItems(){
-            const _this = this
-            this.$axios.get("/store/authorize/getItems",{
-                params:{
-                    "storeId":_this.storeId
-                },
-                headers:{
-                    "token":_this.token
-                }
-            }).then(res=>{
-                this.itemLength = Boolean(res.data.data.length);
-                console.log(res.data.data)
-                _this.itemData = res.data.data
-                console.log(res.data.data.length)
-            })
-        },
-        addItem(){
-            this.$router.push({
-                path:"/addItem",
-                query:{
-                    "storeId":this.storeId
-                }
-            })
-        },
-        index(){
-          this.$router.push("/index")
-        },
-        modify(item){
-          console.log(item)
-          var JSONItem = JSON.stringify(item)
-          sessionStorage.setItem("item",JSONItem)
-          const newTabUrl = `${window.location.origin}/modifyItem`; // 构建新标签页的 URL  
-          window.open(newTabUrl, '_blank'); 
-        }
+      deleteItem(row){
+        console.log(row);
+        console.log(this.token)
+        const _this = this
+        this.$axios.get("/item/authorize/deleteItem",{
+          params:{
+            "objectName":row.objectName,
+            "itemId":row.id
+          },headers:{
+            "token":_this.token
+          }
+        }).then(res=>{
+          console.log(res);
+          location.reload();
+        })
+      },
+      getItems(){
+          const _this = this
+          this.$axios.get("/store/authorize/getItems",{
+              params:{
+                  "storeId":_this.storeId
+              },
+              headers:{
+                  "token":_this.token
+              }
+          }).then(res=>{
+              this.itemLength = Boolean(res.data.data.length);
+              console.log(res.data.data)
+              _this.itemData = res.data.data
+              console.log(res.data.data.length)
+          })
+      },
+      addItem(){
+          this.$router.push({
+              path:"/addItem",
+              query:{
+                  "storeId":this.storeId
+              }
+          })
+      },
+      index(){
+        this.$router.push("/index")
+      },
+      modify(item){
+        console.log(item)
+        var JSONItem = JSON.stringify(item)
+        sessionStorage.setItem("item",JSONItem)
+        const newTabUrl = `${window.location.origin}/modifyItem`; // 构建新标签页的 URL  
+        window.open(newTabUrl, '_blank'); 
+      }
     },
     created(){
         this.token = localStorage.getItem("token");
